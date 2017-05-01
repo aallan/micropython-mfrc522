@@ -1,15 +1,14 @@
 import mfrc522
-from os import uname
-
+from machine import Pin, SPI
 
 def do_write():
 
-	if uname()[0] == 'WiPy':
-		rdr = mfrc522.MFRC522("GP14", "GP16", "GP15", "GP22", "GP17")
-	elif uname()[0] == 'esp8266':
-		rdr = mfrc522.MFRC522(0, 2, 4, 5, 14)
-	else:
-		raise RuntimeError("Unsupported platform")
+	sck = Pin(14, mode=Pin.OUT)  # labelled 5 on nodeMCU
+	mosi = Pin(13, mode=Pin.OUT)  # labelled 7 on nodeMCU
+	miso = Pin(12, mode=Pin.IN)  # labelled 6 on nodeMCU
+	spi = SPI(-1, baudrate=100000, polarity=0, phase=0, sck=sck, mosi=mosi, miso=miso)
+	spi.init()
+	rdr = mfrc522.MFRC522(spi=spi, gpioRst=0, gpioCs=2)
 
 	print("")
 	print("Place card before reader to write address 0x08")
