@@ -24,14 +24,15 @@ def do_read():
 
                 if rdr.select_tag(raw_uid) == rdr.OK:
 
-                    key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+                    key = b'\xff\xff\xff\xff\xff\xff'
 
                     ms = ticks_ms()
 
+                    blockArray = bytearray(16)
                     for sector in range(1, 64):
                         if rdr.auth(rdr.AUTHENT1A, sector, key, raw_uid) == rdr.OK:
-                            print("data@%d: %s" % (sector, rdr.read(sector)))
-                            #rdr.read(sector)
+                            rdr.read(sector, into=blockArray)
+                            print("data@%d: %s" % (sector, blockArray))
                         else:
                             print("Auth err")
                     rdr.stop_crypto1()
