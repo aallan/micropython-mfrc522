@@ -1,6 +1,7 @@
 from machine import Pin, SPI
 from os import uname
 
+emptyRecv = b""
 
 class MFRC522:
 
@@ -17,8 +18,11 @@ class MFRC522:
         # TODO CH rationalise which of these are referenced, which can be identical
         self.regBuf = bytearray(4)
         self.blockWriteBuf = bytearray(18)
+        self.authBuf = bytearray(12)
         self.wregBuf = bytearray(2)
         self.rregBuf = bytearray(1)
+        self.recvBuf = bytearray(16)
+        self.recvMv = memoryview(self.recvBuf)
 
         self.rst = Pin(gpioRst, Pin.OUT)
         self.cs = Pin(gpioCs, Pin.OUT)
@@ -72,9 +76,9 @@ class MFRC522:
     def _cflags(self, reg, mask):
         self._wreg(reg, self._rreg(reg) & (~mask))
 
-    def _tocard(self, cmd, send):
+    def _tocard(self, cmd, send, into=None):
 
-        recv = []
+        recv = emptyRecv
         bits = irq_en = wait_irq = n = 0
         stat = self.ERR
 
@@ -125,8 +129,20 @@ class MFRC522:
                     elif n > 16:
                         n = 16
 
-                    for _ in range(n):
-                        recv.append(self._rreg(0x09))
+                    if into is None:
+                        recv = self.recvBuf
+                    else:
+                        recv = into
+                    pos = 0
+                    while pos < n:
+                        recv[pos] = self._rreg(0x09)
+                        pos += 1
+                    # todo CH remove this bytearray allocation
+                    if into is None:
+                        recv = self.recvMv[:n]
+                    else:
+                        recv = into
+
             else:
                 stat = self.ERR
 
@@ -140,7 +156,7 @@ class MFRC522:
         dataPos = 0
         while dataPos < count:
             self._wreg(0x09, data[dataPos])
-            dataPos+=1
+            dataPos += 1
 
         self._wreg(0x01, 0x03)
 
@@ -202,7 +218,7 @@ class MFRC522:
             else:
                 stat = self.ERR
 
-        return stat, recv
+        return stat, bytearray(recv)
 
     def select_tag(self, ser):
         # TODO CH normalise all list manipulation to bytearray, avoid below allocation
@@ -216,17 +232,25 @@ class MFRC522:
         return self.OK if (stat == self.OK) and (bits == 0x18) else self.ERR
 
     def auth(self, mode, addr, sect, ser):
-        return self._tocard(0x0E, [mode, addr] + sect + ser[:4])[0]
+        # TODO CH normalise all list manipulation to bytearray, avoid below allocation
+        buf = self.authBuf
+        buf[0]=mode # A or B
+        buf[1]=addr # block
+        buf[2:8]=sect[:] # key bytes
+        buf[8:12]=ser[:4] # 4 bytes of id
+        return self._tocard(0x0E, buf)[0]
 
     def stop_crypto1(self):
         self._cflags(0x08, 0x08)
 
-    def read(self, addr):
+    def read(self, addr, into = None):
         buf = self.regBuf
         buf[0]=0x30
         buf[1]=addr
         self._assign_crc(buf, 2)
-        (stat, recv, _) = self._tocard(0x0C, buf)
+        (stat, recv, _) = self._tocard(0x0C, buf, into=into)
+        if into is not None: # do not return direct ref to read buffer
+            recv = bytearray(recv)
         return recv if stat == self.OK else None
 
     def write(self, addr, data):
@@ -240,11 +264,14 @@ class MFRC522:
             stat = self.ERR
         else:
             buf = self.blockWriteBuf
+            buf[:16]=data[:]
+            """
             i = 0
             while i < 16:
                 buf[i] = data[i] # TODO CH eliminate this, accelerate it?
                 i += 1
-            self._assign_crc(buf, i)
+            """
+            self._assign_crc(buf, 16)
             (stat, recv, bits) = self._tocard(0x0C, buf)
             if not (stat == self.OK) or not (bits == 4) or not ((recv[0] & 0x0F) == 0x0A):
                 stat = self.ERR
