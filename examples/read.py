@@ -1,12 +1,13 @@
 import mfrc522
 from machine import Pin,SPI
-
+from utime import ticks_ms
 
 def do_read():
     sck =  Pin(14, mode=Pin.OUT)  # labelled 5 on nodeMCU
     mosi = Pin(13, mode=Pin.OUT)  # labelled 7 on nodeMCU
     miso = Pin(12, mode=Pin.IN)  # labelled 6 on nodeMCU
-    spi = SPI(-1, baudrate=100000, polarity=0, phase=0, sck=sck, mosi=mosi, miso=miso)
+    #spi = SPI(-1, baudrate=100000, polarity=0, phase=0, sck=sck, mosi=mosi, miso=miso)
+    spi = SPI(1, baudrate=2500000, polarity=0, phase=0)
     spi.init()
     rdr = mfrc522.MFRC522(spi=spi, gpioRst=0, gpioCs=2)
 
@@ -29,11 +30,17 @@ def do_read():
 
                     key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
 
+                    ms = ticks_ms()
+
                     for sector in range(1, 64):
                         if rdr.auth(rdr.AUTHENT1A, sector, key, raw_uid) == rdr.OK:
                             print("data@%d: %s" % (sector, rdr.read(sector)))
+                            #rdr.read(sector)
                         else:
                             print("Auth err")
                     rdr.stop_crypto1()
+
+                    print("Read in " + str(ticks_ms() - ms)) # took 4594 ms
+
                 else:
                     print("Select failed")
