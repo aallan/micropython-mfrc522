@@ -3,10 +3,6 @@ from machine import Pin,SPI
 from utime import ticks_ms
 
 def do_read():
-    sck =  Pin(14, mode=Pin.OUT)  # labelled 5 on nodeMCU
-    mosi = Pin(13, mode=Pin.OUT)  # labelled 7 on nodeMCU
-    miso = Pin(12, mode=Pin.IN)  # labelled 6 on nodeMCU
-    #spi = SPI(-1, baudrate=100000, polarity=0, phase=0, sck=sck, mosi=mosi, miso=miso)
     spi = SPI(1, baudrate=2500000, polarity=0, phase=0)
     spi.init()
     rdr = mfrc522.MFRC522(spi=spi, gpioRst=0, gpioCs=2)
