@@ -15,6 +15,10 @@ class MFRC522:
     AUTHENT1B = 0x61
 
     def __init__(self, spi=None, gpioRst=0, gpioCs=2):
+
+        self.rst = Pin(gpioRst, Pin.OUT)
+        self.cs = Pin(gpioCs, Pin.OUT)
+
         # TODO CH rationalise which of these are referenced, which can be identical
         self.regBuf = bytearray(4)
         self.blockWriteBuf = bytearray(18)
@@ -23,9 +27,6 @@ class MFRC522:
         self.rregBuf = bytearray(1)
         self.recvBuf = bytearray(16)
         self.recvMv = memoryview(self.recvBuf)
-
-        self.rst = Pin(gpioRst, Pin.OUT)
-        self.cs = Pin(gpioCs, Pin.OUT)
 
         self.rst.value(0)
         self.cs.value(1)
@@ -63,7 +64,6 @@ class MFRC522:
         self.cs.value(0)
         buf = self.rregBuf
         buf[0]=0xff & (((reg << 1) & 0x7e) | 0x80)
-        #self.spi.write(b'%c' % int(0xff & (((reg << 1) & 0x7e) | 0x80)))
         self.spi.write(buf)
         val = self.spi.read(1)
         self.cs.value(1)
