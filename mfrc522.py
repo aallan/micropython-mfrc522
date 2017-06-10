@@ -14,10 +14,16 @@ class MFRC522:
     AUTHENT1A = 0x60
     AUTHENT1B = 0x61
 
-    def __init__(self, spi=None, gpioRst=0, gpioCs=2):
+    def __init__(self, spi=None, gpioRst=None, gpioCs=None):
 
-        self.rst = Pin(gpioRst, Pin.OUT)
-        self.cs = Pin(gpioCs, Pin.OUT)
+        if gpioRst is not None:
+            self.rst = Pin(gpioRst, Pin.OUT)
+        else:
+            self.rst = None
+        if gpioCs is not None:
+            self.cs = Pin(gpioCs, Pin.OUT)
+        else:
+            self.cs = None
 
         # TODO CH rationalise which of these are referenced, which can be identical
         self.regBuf = bytearray(4)
@@ -28,8 +34,10 @@ class MFRC522:
         self.recvBuf = bytearray(16)
         self.recvMv = memoryview(self.recvBuf)
 
-        self.rst.value(0)
-        self.cs.value(1)
+        if self.rst is not None:
+            self.rst.value(0)
+        if self.cs is not None:
+            self.cs.value(1)
 
         if spi is not None:
             self.spi = spi
@@ -46,27 +54,30 @@ class MFRC522:
             else:
                 raise RuntimeError("Unsupported platform")
 
-        self.rst.value(1)
+        if self.rst is not None:
+            self.rst.value(1)
         self.init()
 
     def _wreg(self, reg, val):
-
-        self.cs.value(0)
+        if self.cs is not None:
+            self.cs.value(0)
         buf = self.wregBuf
         buf[0]=0xff & ((reg << 1) & 0x7e)
         buf[1]=0xff & val
         #self.spi.write(b'%c%c' % (0xff & ((reg << 1) & 0x7e), 0xff & val))
         self.spi.write(buf)
-        self.cs.value(1)
+        if self.cs is not None:
+            self.cs.value(1)
 
     def _rreg(self, reg):
-
-        self.cs.value(0)
+        if self.cs is not None:
+            self.cs.value(0)
         buf = self.rregBuf
         buf[0]=0xff & (((reg << 1) & 0x7e) | 0x80)
         self.spi.write(buf)
         val = self.spi.read(1)
-        self.cs.value(1)
+        if self.cs is not None:
+            self.cs.value(1)
 
         return val[0]
 
@@ -138,6 +149,7 @@ class MFRC522:
                         recv[pos] = self._rreg(0x09)
                         pos += 1
                     # todo CH remove this bytearray allocation
+
                     if into is None:
                         recv = self.recvMv[:n]
                     else:
