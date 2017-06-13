@@ -20,6 +20,7 @@ class MFRC522:
             self.rst = Pin(gpioRst, Pin.OUT)
         else:
             self.rst = None
+	assert(gpioCs is not None, "Needs gpioCs") # TODO fails without cableSelect
         if gpioCs is not None:
             self.cs = Pin(gpioCs, Pin.OUT)
         else:
