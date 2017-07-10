@@ -20,7 +20,7 @@ class MFRC522:
             self.rst = Pin(gpioRst, Pin.OUT)
         else:
             self.rst = None
-	assert(gpioCs is not None, "Needs gpioCs") # TODO fails without cableSelect
+        assert(gpioCs is not None, "Needs gpioCs") # TODO fails without cableSelect
         if gpioCs is not None:
             self.cs = Pin(gpioCs, Pin.OUT)
         else:
@@ -49,7 +49,7 @@ class MFRC522:
             if uname()[0] == 'WiPy':
                 self.spi = SPI(0)
                 self.spi.init(SPI.MASTER, baudrate=1000000, pins=(sck, mosi, miso))
-            elif uname()[0] == 'esp8266':
+            elif uname()[0] == 'esp8266': # TODO update to match https://github.com/cefn/avatap/blob/master/python/host/cockle.py #prepareHost()
                 self.spi = SPI(baudrate=100000, polarity=0, phase=0, sck=sck, mosi=mosi, miso=miso)
                 self.spi.init()
             else:
@@ -65,7 +65,6 @@ class MFRC522:
         buf = self.wregBuf
         buf[0]=0xff & ((reg << 1) & 0x7e)
         buf[1]=0xff & val
-        #self.spi.write(b'%c%c' % (0xff & ((reg << 1) & 0x7e), 0xff & val))
         self.spi.write(buf)
         if self.cs is not None:
             self.cs.value(1)
@@ -149,8 +148,6 @@ class MFRC522:
                     while pos < n:
                         recv[pos] = self._rreg(0x09)
                         pos += 1
-                    # todo CH remove this bytearray allocation
-
                     if into is None:
                         recv = self.recvMv[:n]
                     else:
@@ -231,6 +228,7 @@ class MFRC522:
             else:
                 stat = self.ERR
 
+        # CH Note bytearray allocation here
         return stat, bytearray(recv)
 
     def select_tag(self, ser):
@@ -245,7 +243,7 @@ class MFRC522:
         return self.OK if (stat == self.OK) and (bits == 0x18) else self.ERR
 
     def auth(self, mode, addr, sect, ser):
-        # TODO CH normalise all list manipulation to bytearray, avoid below allocation
+        # TODO CH avoid sect[:] and ser[:4] implicit list allocations
         buf = self.authBuf
         buf[0]=mode # A or B
         buf[1]=addr # block
@@ -265,7 +263,9 @@ class MFRC522:
         buf[1]=addr
         self._assign_crc(buf, 2)
         (stat, recv, _) = self._tocard(0x0C, buf, into=into)
-        if into is not None: # do not return direct ref to read buffer
+        # TODO this logic probably wrong (should be 'into is None'?)
+        if into is not None: # superstitiously avoid returning read buffer memoryview
+            # CH Note bytearray allocation here
             recv = bytearray(recv)
         return recv if stat == self.OK else None
 
@@ -280,6 +280,7 @@ class MFRC522:
             stat = self.ERR
         else:
             buf = self.blockWriteBuf
+            # CH note implicit allocation here ( data[:] )
             buf[:16]=data[:]
             """
             i = 0
