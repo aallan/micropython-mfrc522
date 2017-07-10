@@ -253,6 +253,9 @@ class MFRC522:
         buf[8:12]=ser[:4] # 4 bytes of id
         return self._tocard(0x0E, buf)[0]
 
+    def halt_a(self):
+        pass # TODO this may well need to be implemented for vault to properly back out from a card session
+
     def stop_crypto1(self):
         self._cflags(0x08, 0x08)
 
