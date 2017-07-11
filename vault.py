@@ -1,6 +1,14 @@
 import json
 import gc
+from utime import ticks_ms, ticks_diff
 from mfrc522 import MFRC522
+from timer import timeit
+"""
+def timeit(name):
+    def factory(method):
+        return method
+    return factory
+"""
 
 """The number of banks available in the tag. Only one is active, and has its length stored in the lengths block"""
 numBanks = 3
@@ -35,23 +43,39 @@ class BankVault:
         # currently selected tag (avoid reauth)
         self.selectedTagUid = None
 
+    @timeit('isTagPresent')
+    def isTagPresent(self):
+        (stat, tag_type) = self.rdr.request(MFRC522.REQIDL)  # check if antenna idle
+        return stat is MFRC522.OK
+
+    @timeit('separateTag')
+    def separateTag(self):
+        (stat, tagUid) = self.rdr.anticoll()
+        if stat is not MFRC522.OK:
+            return None
+        else:
+            return tagUid
+
+    @timeit('getPresentTag')
+    def getPresentTag(self):
+        if not(self.isTagPresent()):
+            return None
+        else:
+            return self.separateTag()
+
     # TODO CH add timeout here and in LaptopRfid
     # TODO CH change this to return None ASAP if there is no cardUid there
     # TODO CH should awaitPresence/Absence always force an unselect of any previous cards first?
-    def awaitPresence(self):
-        while True:
-            print("Seeking...")
-            (stat, tag_type) = self.rdr.request(MFRC522.REQIDL)  # check if antenna idle
-            if stat is not MFRC522.OK:
-                print("No tag")
-                continue
-            else:
-                print("Separating...")
-                (stat, tagUid) = self.rdr.anticoll()
-                if stat is not MFRC522.OK:
-                    print("Collision")
-                    continue
-                return tagUid
+    @timeit('awaitPresence')
+    def awaitPresence(self, waitms=None):
+        tagUid = None
+        if waitms is not None:
+            started = ticks_ms()
+        else:
+            started = None
+        while tagUid is None and (waitms is None or ticks_diff(ticks_ms(), started) < waitms):
+            tagUid = self.getPresentTag()
+        return tagUid
 
     def awaitAbsence(self):
         errThreshold = 2
@@ -65,6 +89,7 @@ class BankVault:
         return
 
     # reimplemented as blocking via await presence
+    @timeit('selectTag')
     def selectTag(self, expectTagUid=None):
         if expectTagUid is None or not(self.selectedTagUid==expectTagUid):
             if self.selectedTagUid is not None:
@@ -77,12 +102,14 @@ class BankVault:
             print("Tag already selected")
         return self.selectedTagUid
 
+    @timeit('unselectTag')
     def unselectTag(self):
         self.selectedTagUid = None
         # TODO need to add 'HaltA' here? see https://github.com/cefn/micropython-mfrc522/issues/1
         self.rdr.halt_a()
         self.rdr.stop_crypto1()
 
+    @timeit('readBlock')
     def readBlock(self, realBlockIndex):
         if self.selectedTagUid is None: raise AssertionError("Not selected")
         # TODO CH is this repeated auth always necessary, or only once?
@@ -95,6 +122,7 @@ class BankVault:
         gc.collect()
         return block
 
+    @timeit('writeBlock')
     def writeBlock(self, realBlockIndex, data):
         if self.selectedTagUid is None: raise AssertionError("Not selected")
         # TODO CH is this repeated auth always necessary, or only once?
@@ -118,6 +146,7 @@ class BankVault:
         else:
             return None
 
+    @timeit('writeJson')
     def readJson(self, tagUid=None, unselect=True):
         try:
             tagUid = self.selectTag(tagUid)
@@ -152,6 +181,7 @@ class BankVault:
 
     # example ms=ticks_ms(); sack = vault.readJson(unselect=False); sack["eponapoints"]+=1; sack=vault.writeJson(sack, tagUid=vault.selectedTagUid); print(ticks_ms() - ms)
 
+    @timeit('writeJson')
     def writeJson(self, obj, tagUid=None, unselect=True):
         try:
             # TODO does this implicitly unselect in the case that writeJson is called 'agnostic' to tag
@@ -184,3 +214,19 @@ class BankVault:
             if unselect:
                 self.unselectTag()
             gc.collect()
+
+class CardReadIncompleteError(Exception):
+    """Card was probably removed while reading"""
+    pass
+
+class CardBankMissingError(Exception):
+    """Bank metadata was not found on the card"""
+    pass
+
+class CardJsonInvalidError(Exception):
+    """Bank metadata found, but indicated data wasn't JSON"""
+    pass
+
+class CardJsonIncompatibleError(Exception):
+    """'Userspace' error; JSON was found, but not compatible with the application"""
+    pass
