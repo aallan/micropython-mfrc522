@@ -40,32 +40,38 @@ cardData = None
 
 version = 1
 filler = "The Quick Brown Fox Jumped over the Lazy Dog. Nymphs vex quick dwarf jog blitz."
+#filler= ""
 startData = {"version":version, "counter":0 ,"filler":filler}
 
 while True:
-    gc.collect()
-    if cardCache is not None: # hope to resume
-        presentUid = cardVault.awaitPresence(resumeMs)
-    else:
-        presentUid = cardVault.awaitPresence()
+    cardUid = None
 
-    if presentUid is not None:
-        print("CARD PRESENT")
-    else: # resumeMs timeout was hit
+    gc.collect()
+    print("WAITING FOR CARD")
+    if cardCache is not None: # hope to resume
+        cardUid = cardVault.awaitPresence(resumeMs)
+    else:
+        cardUid = cardVault.awaitPresence()
+
+    if cardUid is None:# resumeMs timeout was hit
         if cardCache is not None:
             print("RESUME ABANDONED")
             cardCache = None
-            continue
+        continue
+
+    print("CARD PRESENT")
+
+    if cardUid in resetUids:
+        print("RESET REQUESTED")
+        resetCard = True
+        cardVault.awaitAbsence()
+        continue
 
     try:
         startTimer('handleCard')
 
-        cardUid = cardVault.selectTag()
+        cardVault.selectTag(cardUid)
 
-        if cardUid in resetUids:
-            resetCard = True
-            cardVault.awaitAbsence()
-            continue
 
         if resetCard:
             cardData = dict(startData)
