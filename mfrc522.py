@@ -251,8 +251,10 @@ class MFRC522:
         buf[8:12]=ser[:4] # 4 bytes of id
         return self._tocard(0x0E, buf)[0]
 
+    # TODO this may well need to be implemented for vault to properly back out from a card session
+    # TODO how, why, when is 'HaltA' needed? see https://github.com/cefn/micropython-mfrc522/issues/1
     def halt_a(self):
-        pass # TODO this may well need to be implemented for vault to properly back out from a card session
+        pass
 
     def stop_crypto1(self):
         self._cflags(0x08, 0x08)
@@ -285,9 +287,10 @@ class MFRC522:
             """
             i = 0
             while i < 16:
-                buf[i] = data[i] # TODO CH eliminate this, accelerate it?
+                buf[i] = data[i]  # TODO CH eliminate this, accelerate it?
                 i += 1
             """
+
             self._assign_crc(buf, 16)
             (stat, recv, bits) = self._tocard(0x0C, buf)
             if not (stat == self.OK) or not (bits == 4) or not ((recv[0] & 0x0F) == 0x0A):
