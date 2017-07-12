@@ -106,17 +106,15 @@ class BankVault:
         self.rdr.stop_crypto1()
 
 #    @timeit('readBlock')
-    def readBlock(self, realBlockIndex):
+    def readBlock(self, realBlockIndex, into=None):
         if self.selectedTagUid is None: raise AssertionError("Not selected")
         # TODO CH is this repeated auth always necessary, or only once?
         if self.rdr.auth(MFRC522.AUTHENT1A, realBlockIndex, key, self.selectedTagUid) is not MFRC522.OK: raise AssertionError("Auth")
         # TODO CH, optimise MFRC522 to prevent allocation here (implement 'readinto' function)
-        block = self.rdr.read(realBlockIndex)
-        # TODO CH, optimise to prevent re-allocation again to bytearray (duplicated in reader too?)
-        block = bytearray(block)
-        # TODO CH, if several allocations above are minimised, can this be dropped?
-        #gc.collect()
-        return block
+        if into is None:
+            into= bytearray(bytesPerBlock)
+        self.rdr.read(realBlockIndex, into=into)
+        return into
 
 #    @timeit('writeBlock')
     def writeBlock(self, realBlockIndex, data):
@@ -125,8 +123,8 @@ class BankVault:
         if self.rdr.auth(MFRC522.AUTHENT1A, realBlockIndex, key, self.selectedTagUid) is not MFRC522.OK: raise AssertionError("Auth")
         return self.rdr.write(realBlockIndex, data)
 
-    def readLengthsBlock(self):
-        return self.readBlock(lengthsRealIndex)
+    def readLengthsBlock(self, into=None):
+        return self.readBlock(lengthsRealIndex, into=into)
 
     def writeLengthsBlock(self, data):
         return self.writeBlock(lengthsRealIndex, data)
@@ -155,13 +153,15 @@ class BankVault:
                 safeIndex = activeBank * blocksPerBank  # what's the first authorable block in the bank
                 nextBytePos = 0
                 # read the next block from the bank, until bankBytes is filled
+                tmpBlock = memoryview(bytearray(bytesPerBlock))
                 while nextBytePos < bankLength:
                     nextRealIndex = getRealIndex(safeIndex)
                     copyLength = min(bytesPerBlock, bankLength - nextBytePos)
-                    # TODO CH pass an 'into' array, avoiding allocation
-                    blockData = self.readBlock(nextRealIndex)
-                    # TODO avoid implicit allocation blockData[:copyLength] when blockData length (bytesPerBlock) is copyLength (most of the time)
-                    bankBytes[nextBytePos:nextBytePos + copyLength] = blockData[:copyLength]
+                    self.readBlock(nextRealIndex, into=tmpBlock)
+                    if copyLength == bytesPerBlock:
+                        bankBytes[nextBytePos:nextBytePos + copyLength] = tmpBlock
+                    else:
+                        bankBytes[nextBytePos:nextBytePos + copyLength] = tmpBlock[:copyLength]
                     nextBytePos += copyLength
                     safeIndex += 1
                 # testing: import json; o = dict(hello="world"); b = bytes(json.dumps(o).encode("ascii")); print(json.loads(b.decode('ascii')))
@@ -195,6 +195,7 @@ class BankVault:
             while nextBytePos < bankLength:
                 nextRealIndex = getRealIndex(safeIndex)
                 copyLength = min(bytesPerBlock, bankLength - nextBytePos)
+                # TODO CH make bankBytes (json dump) a memoryview to allow 'view' to be passed to writeBlock without copy?
                 self.blockBuffer[:copyLength] = bankBytes[nextBytePos:nextBytePos + copyLength]
                 self.writeBlock(nextRealIndex, self.blockBuffer)
                 nextBytePos += copyLength
