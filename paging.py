@@ -33,7 +33,7 @@ cardVault = BankVault(reader=cardReader)
 resetUids =(b'=\xe5zR\xf0', b'=whRp', b'=eoRe', b'=\x14\x8dR\xf6', b'=\x95?R\xc5', b'=Q\xf2R\xcc')
 resetCard = False
 
-resumeMs = 10000
+presenceTimeout = 10000
 
 version = 1
 filler = "The Quick Brown Fox Jumped over the Lazy Dog. Nymphs vex quick dwarf jog blitz."
@@ -49,12 +49,13 @@ while True:
     cardData = None
 
     print("WAITING FOR CARD")
-    if cardCache is not None: # hope to resume
-        cardUid = cardVault.awaitPresence(resumeMs)
+    if cardCache is not None or resetCard is not None: # only block for short period
+        cardUid = cardVault.awaitPresence(presenceTimeout)
     else:
         cardUid = cardVault.awaitPresence()
 
     if cardUid is None:# resumeMs timeout was hit
+        print("TIMEOUT: ", end="")
         if cardCache is not None:
             print("RESUME ABANDONED")
             cardCache = None
@@ -85,7 +86,7 @@ while True:
                 cardData = cardCache["cardData"]
                 print("RESUMED AVOIDING READ")
             else:
-                print("RESUME FAILED")
+                print("NEW CARD: RESUME ABANDONED")
             cardCache = None  # discard cached data from previous cycle (implicitly after resumeMs)
 
         if cardData is None:
