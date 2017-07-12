@@ -242,7 +242,7 @@ class MFRC522:
         return self.OK if (stat == self.OK) and (bits == 0x18) else self.ERR
 
     def auth(self, mode, addr, sect, ser):
-        # TODO CH avoid sect[:] and ser[:4] implicit list allocations
+        # TODO CH void ser[:4] implicit list allocation
         buf = self.authBuf
         buf[0]=mode # A or B
         buf[1]=addr # block
@@ -265,7 +265,7 @@ class MFRC522:
         self._assign_crc(buf, 2)
         (stat, recv, _) = self._tocard(0x0C, buf, into=into)
         # TODO this logic probably wrong (should be 'into is None'?)
-        if into is not None: # superstitiously avoid returning read buffer memoryview
+        if into is None: # superstitiously avoid returning read buffer memoryview
             # CH Note bytearray allocation here
             recv = bytearray(recv)
         return recv if stat == self.OK else None
