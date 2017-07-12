@@ -63,9 +63,6 @@ class BankVault:
         else:
             return self.separateTag()
 
-    # TODO CH add timeout here and in LaptopRfid
-    # TODO CH change this to return None ASAP if there is no cardUid there
-    # TODO CH should awaitPresence/Absence always force an unselect of any previous cards first?
 #    @timeit('awaitPresence')
     def awaitPresence(self, waitms=None):
         tagUid = None
@@ -105,7 +102,6 @@ class BankVault:
 #    @timeit('unselectTag')
     def unselectTag(self):
         self.selectedTagUid = None
-        # TODO need to add 'HaltA' here? see https://github.com/cefn/micropython-mfrc522/issues/1
         self.rdr.halt_a()
         self.rdr.stop_crypto1()
 
@@ -119,7 +115,7 @@ class BankVault:
         # TODO CH, optimise to prevent re-allocation again to bytearray (duplicated in reader too?)
         block = bytearray(block)
         # TODO CH, if several allocations above are minimised, can this be dropped?
-        gc.collect()
+        #gc.collect()
         return block
 
 #    @timeit('writeBlock')
