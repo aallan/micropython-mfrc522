@@ -58,6 +58,9 @@ while True:
         if cardCache is not None:
             print("RESUME ABANDONED")
             cardCache = None
+        if resetCard:
+            print("RESET ABANDONED")
+            resetCard = False
         continue
 
     print("CARD PRESENT")
