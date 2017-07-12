@@ -35,18 +35,19 @@ resetCard = False
 
 resumeMs = 10000
 
-cardCache = None
-cardData = None
-
 version = 1
 filler = "The Quick Brown Fox Jumped over the Lazy Dog. Nymphs vex quick dwarf jog blitz."
 #filler= ""
 startData = {"version":version, "counter":0 ,"filler":filler}
 
-while True:
-    cardUid = None
+cardCache = None
 
+while True:
     gc.collect()
+
+    cardUid = None
+    cardData = None
+
     print("WAITING FOR CARD")
     if cardCache is not None: # hope to resume
         cardUid = cardVault.awaitPresence(resumeMs)
@@ -72,13 +73,14 @@ while True:
 
         cardVault.selectTag(cardUid)
 
-
         if resetCard:
             cardData = dict(startData)
+            resetCard = False
         elif cardCache is not None:
             if cardUid == cardCache["cardUid"]:
+                print("UID MATCHED CACHE")
                 cardData = cardCache["cardData"]
-                print("RESUMED")
+                print("RESUMED AVOIDING READ")
             else:
                 print("RESUME FAILED")
             cardCache = None  # discard cached data from previous cycle (implicitly after resumeMs)
