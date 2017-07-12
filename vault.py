@@ -153,15 +153,16 @@ class BankVault:
                 safeIndex = activeBank * blocksPerBank  # what's the first authorable block in the bank
                 nextBytePos = 0
                 # read the next block from the bank, until bankBytes is filled
-                tmpBlock = memoryview(bytearray(bytesPerBlock))
+                blockArray = bytearray(bytesPerBlock)
+                blockMv = memoryview(blockArray)
                 while nextBytePos < bankLength:
                     nextRealIndex = getRealIndex(safeIndex)
                     copyLength = min(bytesPerBlock, bankLength - nextBytePos)
-                    self.readBlock(nextRealIndex, into=tmpBlock)
+                    self.readBlock(nextRealIndex, into=blockArray)
                     if copyLength == bytesPerBlock:
-                        bankBytes[nextBytePos:nextBytePos + copyLength] = tmpBlock
+                        bankBytes[nextBytePos:nextBytePos + copyLength] = blockArray
                     else:
-                        bankBytes[nextBytePos:nextBytePos + copyLength] = tmpBlock[:copyLength]
+                        bankBytes[nextBytePos:nextBytePos + copyLength] = blockMv[:copyLength]
                     nextBytePos += copyLength
                     safeIndex += 1
                 # testing: import json; o = dict(hello="world"); b = bytes(json.dumps(o).encode("ascii")); print(json.loads(b.decode('ascii')))
@@ -200,10 +201,12 @@ class BankVault:
                 self.writeBlock(nextRealIndex, self.blockBuffer)
                 nextBytePos += copyLength
                 safeIndex += 1
+            # zero blockBuffer
             nextBytePos = bytesPerBlock
             while nextBytePos > 0:
                 nextBytePos -= 1
                 self.blockBuffer[nextBytePos] = 0
+            # populate with single byte and write as lengthsBlock
             self.blockBuffer[nextBank]=bankLength
             self.writeLengthsBlock(self.blockBuffer)
 
