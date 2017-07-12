@@ -233,11 +233,10 @@ class MFRC522:
 
     def select_tag(self, ser):
         # TODO CH normalise all list manipulation to bytearray, avoid below allocation
-        ser = bytearray(ser)
         buf = bytearray(9)
         buf[0] = 0x93
         buf[1] = 0x70
-        buf[2:7] = ser[:5]
+        buf[2:7] = ser
         self._assign_crc(buf, 7)
         (stat, recv, bits) = self._tocard(0x0C, buf)
         return self.OK if (stat == self.OK) and (bits == 0x18) else self.ERR
@@ -247,7 +246,7 @@ class MFRC522:
         buf = self.authBuf
         buf[0]=mode # A or B
         buf[1]=addr # block
-        buf[2:8]=sect[:] # key bytes
+        buf[2:8]=sect # key bytes
         buf[8:12]=ser[:4] # 4 bytes of id
         return self._tocard(0x0E, buf)[0]
 
@@ -282,14 +281,11 @@ class MFRC522:
             stat = self.ERR
         else:
             buf = self.blockWriteBuf
-            # CH note implicit allocation here ( data[:] )
-            buf[:16]=data[:]
-            """
+
             i = 0
             while i < 16:
                 buf[i] = data[i]  # TODO CH eliminate this, accelerate it?
                 i += 1
-            """
 
             self._assign_crc(buf, 16)
             (stat, recv, bits) = self._tocard(0x0C, buf)
