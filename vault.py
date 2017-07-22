@@ -51,26 +51,26 @@ class BankVault:
 #    @timeit('separateTag')
     def separateTag(self):
         (stat, tagUid) = self.rdr.anticoll()
-        if stat is not MFRC522.OK:
-            return None
-        else:
+        if stat is MFRC522.OK:
             return tagUid
+        else:
+            return None
 
 #    @timeit('getPresentTag')
     def getPresentTag(self):
-        if not(self.isTagPresent()):
-            return None
-        else:
+        if self.isTagPresent():
             return self.separateTag()
+        else:
+            return None
 
 #    @timeit('awaitPresence')
     def awaitPresence(self, waitms=None):
         tagUid = None
-        if waitms is not None:
-            started = ticks_ms()
-        else:
-            started = None
-        while tagUid is None and (waitms is None or ticks_diff(ticks_ms(), started) < waitms):
+        started = ticks_ms()
+        while tagUid is None:
+            if waitms is not None:
+                if ticks_diff(ticks_ms(), started) > waitms:
+                    return None
             tagUid = self.getPresentTag()
         return tagUid
 
