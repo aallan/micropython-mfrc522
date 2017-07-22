@@ -5,6 +5,9 @@ emptyRecv = b""
 
 class MFRC522:
 
+    GAIN_REG = 0x26
+    MAX_GAIN = 0x07
+
     OK = 0
     NOTAGERR = 1
     ERR = 2
@@ -189,7 +192,9 @@ class MFRC522:
         self._wreg(0x2C, 0)
         self._wreg(0x15, 0x40)
         self._wreg(0x11, 0x3D)
+        self.set_gain(self.MAX_GAIN)
         self.antenna_on()
+
 
     def reset(self):
         self._wreg(0x01, 0x0F)
@@ -257,6 +262,13 @@ class MFRC522:
 
     def stop_crypto1(self):
         self._cflags(0x08, 0x08)
+
+    def set_gain(self, gain):
+        assert gain <= self.MAX_GAIN
+        # clear bits
+        self._cflags(self.GAIN_REG, 0x07<< 4)
+        # set bits according to gain
+        self._sflags(self.GAIN_REG, gain << 4)
 
     def read(self, addr, into = None):
         buf = self.regBuf
