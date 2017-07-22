@@ -109,7 +109,7 @@ while True:
 
         try:
             cardWritten = dict(cardData)
-            cardVault.writeJson(cardData, tagUid=cardUid, unselect=True)
+            cardVault.writeJson(cardData, tagUid=cardUid, unselect=False)
             cardCache = dict(cardUid=cardUid, cardData=cardData)
         except:
             print("Error; discarding write. One of...")
@@ -121,6 +121,7 @@ while True:
 
     finally:
         endTimer('handleCard')
+        cardVault.unselectTag()
 
     cardVault.awaitAbsence()
 
