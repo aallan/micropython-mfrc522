@@ -55,6 +55,8 @@ class MFRC522:
             elif uname()[0] == 'esp8266': # TODO update to match https://github.com/cefn/avatap/blob/master/python/host/cockle.py #prepareHost()
                 self.spi = SPI(baudrate=100000, polarity=0, phase=0, sck=sck, mosi=mosi, miso=miso)
                 self.spi.init()
+            elif board == "rp2":
+                self.spi = SPI(0,baudrate=1000000,polarity=1,phase=1,bits=8,firstbit=SPI.MSB,sck=self.sck,mosi=self.mosi,miso=self.miso)
             else:
                 raise RuntimeError("Unsupported platform")
 
